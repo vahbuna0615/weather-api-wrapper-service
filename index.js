@@ -8,7 +8,7 @@ require('dotenv').config()
 const { PORT: port, REDIS_URL: redis_url,  VISUAL_CROSSING_BASE_URL: url, VISUAL_CROSSING_API_KEY: apiKey } = process.env
 
 const redisClient = redis.createClient({
-  redis_url
+  url: redis_url
 });
 
 app.listen(port, () => {
@@ -21,7 +21,9 @@ app.get('/', (req, res, next) => {
 
 app.get('/forecast', async (req, res, next) => {
   try {
-    await redisClient.connect()
+    if (!redisClient.isOpen) {
+      await redisClient.connect()
+    }
     const { location } = req.query
     const existingData = await redisClient.get(location)
     if (existingData) {
@@ -34,7 +36,7 @@ app.get('/forecast', async (req, res, next) => {
         key: apiKey
       }
     })
-    await redisClient.set(location, JSON.stringify(response.data), 'EX', 60)
+    await redisClient.set(location, JSON.stringify(response.data), 'EX', 3600)
     await redisClient.disconnect()
     return res.status(200).json(response.data)
   } catch (err) {
